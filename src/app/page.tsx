@@ -7,13 +7,21 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { TopographyBackground } from "@/components/landing/topography-background";
+import { LandingCrosshair } from "@/components/landing/landing-crosshair";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col justify-between selection:bg-accent/20 selection:text-accent">
-      {/* Apple Floating Glass Navigation Header */}
-      <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur-xl transition-colors">
-        <div className="max-w-7xl mx-auto px-6 sm:px-8 h-16 flex items-center justify-between">
+    <div className="relative min-h-screen bg-background text-foreground flex flex-col justify-between selection:bg-accent/20 selection:text-accent overflow-x-hidden">
+      {/* 3D WebGL Topography Background Canvas */}
+      <TopographyBackground />
+
+      {/* Interactive Target Crosshair (Active on Landing Page only) */}
+      <LandingCrosshair />
+
+      {/* Apple Floating Glass Navigation Header - Borderless, Pushed to Corners */}
+      <header className="sticky top-0 z-40 w-full border-0 border-none bg-background/30 backdrop-blur-md transition-colors">
+        <div className="w-full px-6 sm:px-10 h-16 flex items-center justify-between">
           <Link
             href="/"
             className="flex items-center gap-2 group transition-opacity hover:opacity-90"
@@ -37,17 +45,17 @@ export default function Home() {
       </header>
 
       {/* Main Expansive Apple Showcase */}
-      <main className="flex-1 max-w-7xl mx-auto px-6 sm:px-8 py-16 sm:py-24 w-full flex flex-col justify-center">
+      <main className="relative z-10 flex-1 max-w-7xl mx-auto px-6 sm:px-8 py-20 sm:py-28 w-full flex flex-col justify-center pointer-events-none">
         {/* Hero Section */}
-        <div className="text-center max-w-3xl mx-auto space-y-6 sm:space-y-8 mb-16 sm:mb-24">
+        <div className="text-center max-w-3xl mx-auto space-y-6 sm:space-y-8 mb-20 sm:mb-28">
           {/* Subtle Pill Chip */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-border bg-surface/60 backdrop-blur-md text-[13px] font-medium text-secondary shadow-sm hover:border-border-hover transition-colors">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-border/80 bg-surface/70 backdrop-blur-md text-[13px] font-medium text-secondary shadow-sm hover:border-border-hover transition-colors pointer-events-auto">
             <Sparkles className="w-3.5 h-3.5 text-accent" />
             <span className="text-foreground/90">Personal knowledge graph</span>
           </div>
 
           {/* Master Headline */}
-          <h1 className="text-4xl sm:text-5xl md:text-[62px] font-semibold tracking-[-0.035em] text-foreground leading-[1.08]">
+          <h1 className="text-4xl sm:text-5xl md:text-[64px] font-semibold tracking-[-0.035em] text-foreground leading-[1.08] drop-shadow-xs">
             All your learning in one interlinked system
           </h1>
 
@@ -58,21 +66,28 @@ export default function Home() {
           </p>
 
           {/* Primary Action */}
-          <div className="pt-2 flex items-center justify-center gap-3">
+          <div className="pt-2 flex flex-col items-center justify-center gap-3">
             <Button
               asChild
               size="lg"
-              className="h-12 px-8 rounded-xl font-semibold text-[15px] shadow-[0_4px_16px_rgba(0,122,255,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all"
+              className="h-12 px-8 rounded-xl font-semibold text-[15px] shadow-[0_4px_16px_rgba(0,122,255,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all pointer-events-auto"
             >
               <Link href="/sign-up">Get started</Link>
             </Button>
+            <span className="text-[11.5px] text-muted flex items-center gap-1.5 pointer-events-none">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+              Interactive HUD & terrain · Move cursor to target & sculpt · Click anywhere to pulse
+            </span>
           </div>
         </div>
 
         {/* Expansive Feature Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-7 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-7 w-full pointer-events-auto">
           {/* Card 1: Resources & Notes */}
-          <div className="group rounded-[22px] border border-border bg-surface p-7 sm:p-8 space-y-5 transition-all duration-300 hover:border-border-hover hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-white/[0.02]">
+          <div
+            data-crosshair-target
+            className="group rounded-[22px] border border-border/80 bg-surface/75 backdrop-blur-md p-7 sm:p-8 space-y-5 transition-all duration-300 hover:border-border-hover hover:bg-surface/90 hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-white/[0.02]"
+          >
             <div className="w-12 h-12 rounded-xl bg-accent-tint text-accent flex items-center justify-center border border-accent/20 transition-transform group-hover:scale-105 duration-200">
               <BookOpen className="w-6 h-6 stroke-[1.75]" />
             </div>
@@ -88,7 +103,10 @@ export default function Home() {
           </div>
 
           {/* Card 2: Knowledge Graph */}
-          <div className="group rounded-[22px] border border-border bg-surface p-7 sm:p-8 space-y-5 transition-all duration-300 hover:border-border-hover hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-white/[0.02]">
+          <div
+            data-crosshair-target
+            className="group rounded-[22px] border border-border/80 bg-surface/75 backdrop-blur-md p-7 sm:p-8 space-y-5 transition-all duration-300 hover:border-border-hover hover:bg-surface/90 hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-white/[0.02]"
+          >
             <div className="w-12 h-12 rounded-xl bg-purple-tint text-purple flex items-center justify-center border border-purple/20 transition-transform group-hover:scale-105 duration-200">
               <Brain className="w-6 h-6 stroke-[1.75]" />
             </div>
@@ -104,7 +122,10 @@ export default function Home() {
           </div>
 
           {/* Card 3: Study Planner */}
-          <div className="group rounded-[22px] border border-border bg-surface p-7 sm:p-8 space-y-5 transition-all duration-300 hover:border-border-hover hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-white/[0.02]">
+          <div
+            data-crosshair-target
+            className="group rounded-[22px] border border-border/80 bg-surface/75 backdrop-blur-md p-7 sm:p-8 space-y-5 transition-all duration-300 hover:border-border-hover hover:bg-surface/90 hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-white/[0.02]"
+          >
             <div className="w-12 h-12 rounded-xl bg-success-tint text-success flex items-center justify-center border border-success/20 transition-transform group-hover:scale-105 duration-200">
               <CheckSquare className="w-6 h-6 stroke-[1.75]" />
             </div>
@@ -122,7 +143,7 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="w-full border-t border-border py-8 transition-colors">
+      <footer className="relative z-10 w-full border-t border-border/70 bg-background/60 backdrop-blur-md py-8 transition-colors">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[13px] text-secondary">
           <div className="flex items-center gap-3">
             <span className="font-medium text-foreground">Lock In</span>
