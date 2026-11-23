@@ -12,27 +12,25 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { ResourceItem } from "@/actions/resources";
 import type { ResourceStatus } from "@/lib/validations/resource";
-import {
-  RESOURCE_TYPES,
-  RESOURCE_STATUSES,
-  formatMinutes,
-} from "./resource-types";
+import { RESOURCE_TYPES } from "./resource-types";
 
 interface ResourceTableProps {
   resources: ResourceItem[];
+  currentUserId?: string;
   onView: (resource: ResourceItem) => void;
   onEdit: (resource: ResourceItem) => void;
   onDelete: (id: string) => void;
-  onStatusChange: (id: string, status: ResourceStatus) => void;
+  onStatusChange?: (id: string, status: ResourceStatus) => void;
   onToggleFavorite: (id: string) => void;
+  onTogglePublic?: (id: string) => void;
 }
 
 export function ResourceTable({
   resources,
+  currentUserId,
   onView,
   onEdit,
   onDelete,
-  onStatusChange,
   onToggleFavorite,
 }: ResourceTableProps) {
   if (resources.length === 0) {
@@ -46,21 +44,18 @@ export function ResourceTable({
           <thead>
             <tr className="border-b border-border bg-muted-bg/60 text-[11px] font-semibold text-muted uppercase tracking-wider select-none">
               <th className="py-3.5 px-4 w-10"></th>
-              <th className="py-3.5 px-4">Title & Breadcrumb</th>
+              <th className="py-3.5 px-4">Title & Hierarchy</th>
               <th className="py-3.5 px-4">Type</th>
-              <th className="py-3.5 px-4">Status</th>
-              <th className="py-3.5 px-4">Time Spent</th>
               <th className="py-3.5 px-4">Tags</th>
               <th className="py-3.5 px-4 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/50">
             {resources.map((resource) => {
+              const isOwner = !currentUserId || resource.userId === currentUserId;
               const typeConfig =
                 RESOURCE_TYPES[resource.type] || RESOURCE_TYPES.OTHER;
               const TypeIcon = typeConfig.icon;
-              const statusConfig =
-                RESOURCE_STATUSES[resource.status] || RESOURCE_STATUSES.BACKLOG;
 
               // Build category hierarchy
               const categoryStr = resource.category
@@ -106,16 +101,23 @@ export function ResourceTable({
                     </button>
                   </td>
 
-                  {/* Title & Category */}
-                  <td className="py-3.5 px-4 max-w-xs">
+                  {/* Title & Category Hierarchy */}
+                  <td className="py-3.5 px-4 max-w-sm">
                     <div className="font-semibold text-[14px] text-foreground tracking-tight truncate group-hover:text-accent transition-colors">
                       {resource.title}
                     </div>
-                    {categoryStr && (
-                      <div className="text-[11px] text-secondary font-medium truncate mt-0.5">
-                        {categoryStr}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {categoryStr && (
+                        <div className="text-[11px] text-accent font-medium truncate">
+                          {categoryStr}
+                        </div>
+                      )}
+                      {resource.user && !isOwner && (
+                        <span className="text-[10px] text-muted-foreground truncate">
+                          • By @{resource.user.username || resource.user.name}
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   {/* Type Badge */}
@@ -131,56 +133,10 @@ export function ResourceTable({
                     </span>
                   </td>
 
-                  {/* Status Dropdown */}
-                  <td
-                    className="py-3.5 px-4 whitespace-nowrap"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="relative inline-flex items-center">
-                      <span
-                        className={cn(
-                          "w-1.5 h-1.5 rounded-full absolute left-2.5 pointer-events-none",
-                          statusConfig.dotColor
-                        )}
-                      />
-                      <select
-                        value={resource.status}
-                        onChange={(e) =>
-                          onStatusChange(
-                            resource.id,
-                            e.target.value as ResourceStatus
-                          )
-                        }
-                        className={cn(
-                          "text-[11px] font-semibold pl-5 pr-5 py-1 rounded-lg border appearance-none cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent",
-                          statusConfig.badgeClass
-                        )}
-                        aria-label="Status selection"
-                      >
-                        <option value="BACKLOG">Backlog</option>
-                        <option value="IN_PROGRESS">In Progress</option>
-                        <option value="COMPLETED">Completed</option>
-                        <option value="ARCHIVED">Archived</option>
-                      </select>
-                    </div>
-                  </td>
-
-                  {/* Time Spent */}
-                  <td className="py-3.5 px-4 whitespace-nowrap text-secondary font-mono text-[12px]">
-                    <span className="px-2 py-0.5 rounded-md bg-muted-bg font-semibold">
-                      {formatMinutes(resource.actualMinutes)}
-                    </span>
-                    {resource.estimatedMinutes && (
-                      <span className="text-muted text-[11px] ml-1">
-                        / {formatMinutes(resource.estimatedMinutes)}
-                      </span>
-                    )}
-                  </td>
-
                   {/* Tags */}
-                  <td className="py-3.5 px-4 max-w-[180px]">
+                  <td className="py-3.5 px-4 max-w-[200px]">
                     <div className="flex items-center gap-1 flex-wrap">
-                      {resource.tags?.slice(0, 2).map((tag) => (
+                      {resource.tags?.slice(0, 3).map((tag) => (
                         <Badge
                           key={tag.id}
                           variant="secondary"
@@ -189,9 +145,9 @@ export function ResourceTable({
                           #{tag.name}
                         </Badge>
                       ))}
-                      {(resource.tags?.length || 0) > 2 && (
+                      {(resource.tags?.length || 0) > 3 && (
                         <span className="text-[10px] text-muted font-medium">
-                          +{(resource.tags?.length || 0) - 2}
+                          +{(resource.tags?.length || 0) - 3}
                         </span>
                       )}
                     </div>
@@ -222,22 +178,26 @@ export function ResourceTable({
                       >
                         <BookOpen className="w-3.5 h-3.5" />
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => onEdit(resource)}
-                        className="p-1.5 rounded-lg text-secondary hover:text-foreground hover:bg-muted-bg transition-colors cursor-pointer"
-                        title="Edit resource"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onDelete(resource.id)}
-                        className="p-1.5 rounded-lg text-secondary hover:text-danger hover:bg-danger-tint transition-colors cursor-pointer"
-                        title="Delete resource"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {isOwner && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => onEdit(resource)}
+                            className="p-1.5 rounded-lg text-secondary hover:text-foreground hover:bg-muted-bg transition-colors cursor-pointer"
+                            title="Edit resource"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDelete(resource.id)}
+                            className="p-1.5 rounded-lg text-secondary hover:text-danger hover:bg-danger-tint transition-colors cursor-pointer"
+                            title="Delete resource"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

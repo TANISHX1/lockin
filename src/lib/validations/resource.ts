@@ -37,6 +37,7 @@ export const createResourceSchema = z.object({
   estimatedMinutes: z.number().int().min(0).optional().nullable(),
   actualMinutes: z.number().int().min(0).default(0),
   isFavorite: z.boolean().default(false),
+  isPublic: z.boolean().default(false),
   notes: z.string().max(50000).optional().nullable(),
   summary: z.string().max(2000).optional().nullable(),
   tagNames: z.array(z.string().trim().min(1)).optional().default([]),
@@ -64,6 +65,7 @@ export const updateResourceSchema = z.object({
   estimatedMinutes: z.number().int().min(0).optional().nullable(),
   actualMinutes: z.number().int().min(0).optional(),
   isFavorite: z.boolean().optional(),
+  isPublic: z.boolean().optional(),
   notes: z.string().max(50000).optional().nullable(),
   summary: z.string().max(2000).optional().nullable(),
   tagNames: z.array(z.string().trim().min(1)).optional(),
@@ -75,6 +77,10 @@ export const updateResourceStatusSchema = z.object({
 });
 
 export const toggleFavoriteSchema = z.object({
+  id: z.string().cuid(),
+});
+
+export const togglePublicSchema = z.object({
   id: z.string().cuid(),
 });
 

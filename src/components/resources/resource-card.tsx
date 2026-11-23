@@ -4,7 +4,6 @@ import * as React from "react";
 import {
   Star,
   ExternalLink,
-  Clock,
   MoreHorizontal,
   Edit2,
   Trash2,
@@ -12,21 +11,24 @@ import {
   Video,
   Globe,
   FileText,
-  Code2,
+  Eye,
+  Lock,
   Play,
+  Code2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ResourceItem } from "@/actions/resources";
-import type { ResourceStatus } from "@/lib/validations/resource";
-import { formatMinutes } from "./resource-types";
+import { RESOURCE_TYPES } from "./resource-types";
 
 interface ResourceCardProps {
   resource: ResourceItem;
+  currentUserId?: string;
   onView: (resource: ResourceItem) => void;
   onEdit: (resource: ResourceItem) => void;
   onDelete: (id: string) => void;
-  onStatusChange?: (id: string, status: ResourceStatus) => void;
+  onStatusChange?: (id: string, status: any) => void;
   onToggleFavorite: (id: string) => void;
+  onTogglePublic?: (id: string) => void;
 }
 
 // Extract YouTube video ID
@@ -61,15 +63,29 @@ function isDirectImageUrl(url?: string | null): boolean {
 
 export function ResourceCard({
   resource,
+  currentUserId,
   onView,
   onEdit,
   onDelete,
   onToggleFavorite,
+  onTogglePublic,
 }: ResourceCardProps) {
+  const isOwner = !currentUserId || resource.userId === currentUserId;
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [imgError, setImgError] = React.useState(false);
   const [ogData, setOgData] = React.useState<{ image: string | null; favicon: string | null; siteName: string | null } | null>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
+
+  // Category hierarchy breadcrumb
+  const categoryCrumb = React.useMemo(() => {
+    if (!resource.category) return null;
+    const parts = [
+      resource.category.parent?.parent?.name,
+      resource.category.parent?.name,
+      resource.category.name,
+    ].filter(Boolean);
+    return parts.join(" › ");
+  }, [resource.category]);
 
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -127,30 +143,8 @@ export function ResourceCard({
 
   const faviconUrl = ogData?.favicon || (domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : null);
 
-  const statusMap: Record<ResourceStatus, { label: string; bg: string; dot: string }> = {
-    BACKLOG: {
-      label: "Backlog",
-      bg: "bg-muted/70 text-muted-foreground border-border/50",
-      dot: "bg-muted-foreground/60",
-    },
-    IN_PROGRESS: {
-      label: "Reading",
-      bg: "bg-blue-500/10 text-blue-500 border-blue-500/25 font-semibold",
-      dot: "bg-blue-500 animate-pulse",
-    },
-    COMPLETED: {
-      label: "Done",
-      bg: "bg-emerald-500/10 text-emerald-500 border-emerald-500/25 font-semibold",
-      dot: "bg-emerald-500",
-    },
-    ARCHIVED: {
-      label: "Archived",
-      bg: "bg-muted/40 text-muted-foreground/60 border-border/40",
-      dot: "bg-muted-foreground/40",
-    },
-  };
-
-  const currentStatus = statusMap[resource.status] || statusMap.BACKLOG;
+  const currentType = RESOURCE_TYPES[resource.type] || RESOURCE_TYPES.OTHER;
+  const TypeIcon = currentType.icon;
 
   return (
     <div
@@ -232,14 +226,6 @@ export function ResourceCard({
           </div>
         )}
 
-        {/* Duration Badge Overlay (Bottom Right) */}
-        {resource.estimatedMinutes && resource.estimatedMinutes > 0 && (
-          <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-md text-white font-mono text-[10px] font-medium flex items-center gap-1 shadow-sm">
-            <Clock className="w-2.5 h-2.5" />
-            <span>{formatMinutes(resource.estimatedMinutes)}</span>
-          </div>
-        )}
-
         {/* Favorite Star (Top Right of Preview) */}
         <button
           type="button"
@@ -317,17 +303,51 @@ export function ResourceCard({
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-36 rounded-xl border border-white/10 bg-popover/95 backdrop-blur-2xl shadow-xl p-1 z-30 text-xs animate-in zoom-in-95 duration-150">
+                <div className="absolute right-0 top-full mt-1 w-44 rounded-xl border border-border/80 bg-popover/95 backdrop-blur-2xl shadow-xl p-1 z-30 text-xs animate-in zoom-in-95 duration-150">
                   <button
                     type="button"
                     onClick={() => {
                       setMenuOpen(false);
-                      onEdit(resource);
+                      onView(resource);
                     }}
-                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-foreground hover:bg-muted/80 transition-colors font-medium"
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-foreground hover:bg-muted/80 transition-colors font-medium cursor-pointer"
                   >
-                    <Edit2 className="w-3.5 h-3.5" /> Edit
+                    <Eye className="w-3.5 h-3.5" /> View Notes
                   </button>
+
+                  {isOwner && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onEdit(resource);
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-foreground hover:bg-muted/80 transition-colors font-medium cursor-pointer"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" /> Edit
+                    </button>
+                  )}
+
+                  {isOwner && onTogglePublic && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onTogglePublic(resource.id);
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-foreground hover:bg-muted/80 transition-colors font-medium cursor-pointer"
+                    >
+                      {resource.isPublic ? (
+                        <>
+                          <Lock className="w-3.5 h-3.5 text-muted-foreground" /> Make Private
+                        </>
+                      ) : (
+                        <>
+                          <Globe className="w-3.5 h-3.5 text-emerald-500" /> Make Public
+                        </>
+                      )}
+                    </button>
+                  )}
 
                   {resource.url && (
                     <a
@@ -341,44 +361,60 @@ export function ResourceCard({
                     </a>
                   )}
 
-                  <div className="my-1 border-t border-border/40" />
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onDelete(resource.id);
-                    }}
-                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors font-medium"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> Delete
-                  </button>
+                  {isOwner && (
+                    <>
+                      <div className="my-1 border-t border-border/40" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          onDelete(resource.id);
+                        }}
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors font-medium cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
           </div>
 
-          {/* Title (1 line, truncate with ellipsis) */}
+          {/* Title & Hierarchy Breadcrumb */}
+          {categoryCrumb && (
+            <div className="text-[10px] font-semibold text-accent truncate tracking-tight uppercase flex items-center gap-1">
+              <span>{categoryCrumb}</span>
+            </div>
+          )}
+
           <h4
             className="text-xs sm:text-sm font-semibold text-foreground truncate group-hover:text-blue-500 transition-colors"
             title={resource.title}
           >
             {resource.title}
           </h4>
+
+          {/* Shared by indicator if public and not owner */}
+          {resource.user && !isOwner && (
+            <div className="text-[10px] text-muted-foreground truncate flex items-center gap-1 pt-0.5">
+              <span>Curated by</span>
+              <span className="font-semibold text-foreground">@{resource.user.username || resource.user.name}</span>
+            </div>
+          )}
         </div>
 
-        {/* 3. Bottom Row: Status Pill on Left + Open Affordance on Right */}
+        {/* 3. Bottom Row: Type on Left + Open Affordance on Right */}
         <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[11px] mt-2">
-          {/* Status Pill */}
-          <div
+          <span
             className={cn(
-              "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] border font-medium",
-              currentStatus.bg
+              "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold border",
+              currentType.bg
             )}
           >
-            <span className={cn("w-1.5 h-1.5 rounded-full", currentStatus.dot)} />
-            <span>{currentStatus.label}</span>
-          </div>
+            <TypeIcon className="w-3 h-3" />
+            <span>{currentType.label}</span>
+          </span>
 
           {/* Open ↗ Affordance */}
           {resource.url ? (
@@ -387,7 +423,7 @@ export function ResourceCard({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-blue-500 transition-colors group/link"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-accent transition-colors group/link"
             >
               <span>open</span>
               <span className="text-xs transition-transform group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5">

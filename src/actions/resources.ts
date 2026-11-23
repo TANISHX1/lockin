@@ -34,6 +34,7 @@ export interface ResourceTagDto {
 
 export interface ResourceItem {
   id: string;
+  userId: string;
   title: string;
   url: string | null;
   type: ResourceType;
@@ -45,9 +46,16 @@ export interface ResourceItem {
   estimatedMinutes: number | null;
   actualMinutes: number;
   isFavorite: boolean;
+  isPublic: boolean;
   completedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  user?: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    avatarUrl: string | null;
+  } | null;
   category: {
     id: string;
     name: string;
@@ -65,6 +73,8 @@ export interface ResourceItem {
 }
 
 export interface ResourceFilterParams {
+  scope?: "all" | "personal" | "public";
+  isPublic?: boolean;
   status?: ResourceStatus | "ALL";
   type?: ResourceType | "ALL";
   categoryId?: string | null;
@@ -89,6 +99,8 @@ export async function getResourcesAction(
 
     const userId = session.user.id;
     const {
+      scope = "all",
+      isPublic,
       status,
       type,
       categoryId,
@@ -100,9 +112,28 @@ export async function getResourcesAction(
     } = filters;
 
     // Build Prisma query where clause
-    const where: Prisma.ResourceWhereInput = {
-      userId,
-    };
+    let where: Prisma.ResourceWhereInput = {};
+
+    if (scope === "public") {
+      // Public resources: Visible and accessible to all users of the application
+      where = {
+        isPublic: true,
+      };
+    } else if (scope === "personal") {
+      // Private resources: Visible only to the current user
+      where = {
+        userId,
+        isPublic: false,
+      };
+    } else {
+      // All items belonging to current user
+      where = {
+        userId,
+      };
+      if (typeof isPublic === "boolean") {
+        where.isPublic = isPublic;
+      }
+    }
 
     if (status && status !== "ALL") {
       where.status = status;
@@ -155,6 +186,14 @@ export async function getResourcesAction(
       where,
       orderBy,
       include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatarUrl: true,
+          },
+        },
         category: {
           select: {
             id: true,
@@ -190,6 +229,7 @@ export async function getResourcesAction(
 
     const formatted: ResourceItem[] = resources.map((r) => ({
       id: r.id,
+      userId: r.userId,
       title: r.title,
       url: r.url,
       type: r.type as ResourceType,
@@ -201,9 +241,11 @@ export async function getResourcesAction(
       estimatedMinutes: r.estimatedMinutes,
       actualMinutes: r.actualMinutes,
       isFavorite: r.isFavorite,
+      isPublic: r.isPublic,
       completedAt: r.completedAt,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
+      user: r.user,
       category: r.category,
       tags: r.tags.map((rt) => rt.tag),
     }));
@@ -232,6 +274,14 @@ export async function getResourceByIdAction(
     const resource = await db.resource.findUnique({
       where: { id },
       include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatarUrl: true,
+          },
+        },
         category: {
           select: {
             id: true,
@@ -265,12 +315,13 @@ export async function getResourceByIdAction(
       },
     });
 
-    if (!resource || !can(session.user, "read", { type: "resource", data: { userId: resource.userId } })) {
+    if (!resource || !can(session.user, "read", { type: "resource", data: { userId: resource.userId, isPublic: resource.isPublic } })) {
       return { ok: false, error: "Resource not found or unauthorized" };
     }
 
     const formatted: ResourceItem = {
       id: resource.id,
+      userId: resource.userId,
       title: resource.title,
       url: resource.url,
       type: resource.type as ResourceType,
@@ -282,9 +333,11 @@ export async function getResourceByIdAction(
       estimatedMinutes: resource.estimatedMinutes,
       actualMinutes: resource.actualMinutes,
       isFavorite: resource.isFavorite,
+      isPublic: resource.isPublic,
       completedAt: resource.completedAt,
       createdAt: resource.createdAt,
       updatedAt: resource.updatedAt,
+      user: resource.user,
       category: resource.category,
       tags: resource.tags.map((rt) => rt.tag),
     };
@@ -329,6 +382,7 @@ export async function createResourceAction(
       estimatedMinutes,
       actualMinutes,
       isFavorite,
+      isPublic = false,
       notes,
       summary,
       tagNames = [],
@@ -368,6 +422,7 @@ export async function createResourceAction(
         estimatedMinutes: estimatedMinutes || null,
         actualMinutes: actualMinutes || 0,
         isFavorite: isFavorite || false,
+        isPublic: isPublic || false,
         notes: notes || null,
         summary: summary || null,
         completedAt: status === "COMPLETED" ? new Date() : null,
@@ -384,7 +439,7 @@ export async function createResourceAction(
       action: "CREATE",
       entityType: "resource",
       entityId: created.id,
-      meta: { title, type, status },
+      meta: { title, type, status, isPublic },
     });
 
     revalidatePath("/resources");
@@ -431,6 +486,7 @@ export async function updateResourceAction(
       estimatedMinutes,
       actualMinutes,
       isFavorite,
+      isPublic,
       notes,
       summary,
       tagNames,
@@ -479,6 +535,7 @@ export async function updateResourceAction(
       ...(estimatedMinutes !== undefined && { estimatedMinutes }),
       ...(actualMinutes !== undefined && { actualMinutes }),
       ...(isFavorite !== undefined && { isFavorite }),
+      ...(isPublic !== undefined && { isPublic }),
       ...(notes !== undefined && { notes: notes || null }),
       ...(summary !== undefined && { summary: summary || null }),
       completedAt,
@@ -680,6 +737,62 @@ export async function deleteResourceAction(
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Failed to delete resource",
+    };
+  }
+}
+
+/**
+ * Toggle public/private visibility of a resource
+ */
+export async function toggleResourceVisibilityAction(
+  rawInput: { id: string }
+): Promise<ActionResult<{ isPublic: boolean }>> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { ok: false, error: "Unauthenticated" };
+    }
+
+    const { id } = rawInput;
+    if (!id) {
+      return { ok: false, error: "Missing resource ID" };
+    }
+
+    const existing = await db.resource.findUnique({
+      where: { id },
+    });
+
+    if (!existing || !can(session.user, "update", { type: "resource", data: { userId: existing.userId } })) {
+      return { ok: false, error: "Resource not found or unauthorized" };
+    }
+
+    const nextPublic = !existing.isPublic;
+
+    await db.resource.update({
+      where: { id },
+      data: { isPublic: nextPublic },
+    });
+
+    await logActivity({
+      userId: session.user.id,
+      action: "UPDATE",
+      entityType: "resource",
+      entityId: id,
+      meta: {
+        title: existing.title,
+        isPublic: nextPublic,
+        change: nextPublic ? "MAKE_PUBLIC" : "MAKE_PRIVATE",
+      },
+    });
+
+    revalidatePath("/resources");
+    revalidatePath("/dashboard");
+
+    return { ok: true, data: { isPublic: nextPublic } };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Failed to toggle visibility",
     };
   }
 }

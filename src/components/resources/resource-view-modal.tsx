@@ -9,6 +9,8 @@ import {
   Trash2,
   ChevronRight,
   BookOpen,
+  Globe,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,18 +19,18 @@ import type { ResourceItem } from "@/actions/resources";
 import type { ResourceStatus } from "@/lib/validations/resource";
 import {
   RESOURCE_TYPES,
-  RESOURCE_STATUSES,
-  formatMinutes,
 } from "./resource-types";
 
 interface ResourceViewModalProps {
   resource: ResourceItem | null;
+  currentUserId?: string;
   isOpen: boolean;
   onClose: () => void;
   onEdit: (resource: ResourceItem) => void;
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: ResourceStatus) => void;
   onToggleFavorite: (id: string) => void;
+  onTogglePublic?: (id: string) => void;
 }
 
 function getCategoryCrumbs(category: ResourceItem["category"]) {
@@ -46,20 +48,21 @@ function getCategoryCrumbs(category: ResourceItem["category"]) {
 
 export function ResourceViewModal({
   resource,
+  currentUserId,
   isOpen,
   onClose,
   onEdit,
   onDelete,
   onStatusChange,
   onToggleFavorite,
+  onTogglePublic,
 }: ResourceViewModalProps) {
   if (!isOpen || !resource) return null;
 
+  const isOwner = !currentUserId || resource.userId === currentUserId;
   const categoryCrumbs = getCategoryCrumbs(resource.category);
   const typeConfig = RESOURCE_TYPES[resource.type] || RESOURCE_TYPES.OTHER;
   const TypeIcon = typeConfig.icon;
-  const statusConfig =
-    RESOURCE_STATUSES[resource.status] || RESOURCE_STATUSES.BACKLOG;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -79,26 +82,30 @@ export function ResourceViewModal({
               <TypeIcon className="w-3.5 h-3.5" />
               <span>{typeConfig.label}</span>
             </span>
-
-            {/* Status Select */}
-            <select
-              value={resource.status}
-              onChange={(e) =>
-                onStatusChange(resource.id, e.target.value as ResourceStatus)
-              }
-              className={cn(
-                "text-[12px] font-semibold px-3 py-1 rounded-xl border appearance-none pr-6 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent",
-                statusConfig.badgeClass
-              )}
-            >
-              <option value="BACKLOG">Backlog</option>
-              <option value="IN_PROGRESS">In Progress</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="ARCHIVED">Archived</option>
-            </select>
           </div>
 
           <div className="flex items-center gap-2">
+            {isOwner && onTogglePublic && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onTogglePublic(resource.id)}
+                className="rounded-xl text-[12px] font-medium gap-1.5 h-8 border-border hover:bg-muted-bg"
+              >
+                {resource.isPublic ? (
+                  <>
+                    <Lock className="w-3 h-3 text-muted-foreground" />
+                    <span>Make Private</span>
+                  </>
+                ) : (
+                  <>
+                    <Globe className="w-3 h-3 text-emerald-500" />
+                    <span>Make Public</span>
+                  </>
+                )}
+              </Button>
+            )}
+
             <button
               type="button"
               onClick={() => onToggleFavorite(resource.id)}
@@ -108,12 +115,7 @@ export function ResourceViewModal({
                   ? "text-amber-500 bg-amber-500/10"
                   : "text-muted hover:text-foreground hover:bg-muted-bg"
               )}
-              title={
-                resource.isFavorite
-                  ? "Remove from favorites"
-                  : "Add to favorites"
-              }
-              aria-label="Toggle favorite"
+              title="Favorite"
             >
               <Star
                 className={cn(
@@ -123,26 +125,27 @@ export function ResourceViewModal({
               />
             </button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                onClose();
-                onEdit(resource);
-              }}
-              className="h-9 px-3 rounded-xl gap-1.5 text-[13px]"
-            >
-              <Edit2 className="w-3.5 h-3.5" />
-              <span>Edit</span>
-            </Button>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onEdit(resource);
+                }}
+                className="p-2 rounded-xl text-secondary hover:text-foreground hover:bg-muted-bg transition-colors cursor-pointer"
+                title="Edit"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+            )}
 
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl text-muted hover:text-foreground hover:bg-muted-bg transition-colors cursor-pointer"
-              aria-label="Close modal"
+              className="p-2 rounded-xl text-secondary hover:text-foreground hover:bg-muted-bg transition-colors cursor-pointer"
+              title="Close"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -212,23 +215,7 @@ export function ResourceViewModal({
           )}
 
           {/* Metadata Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-2xl border border-border bg-muted-bg/30 text-[13px]">
-            <div className="space-y-0.5">
-              <span className="text-[11px] text-muted uppercase font-semibold">
-                Time Spent
-              </span>
-              <p className="font-medium text-foreground">
-                {formatMinutes(resource.actualMinutes)}
-              </p>
-            </div>
-            <div className="space-y-0.5">
-              <span className="text-[11px] text-muted uppercase font-semibold">
-                Estimated
-              </span>
-              <p className="font-medium text-foreground">
-                {formatMinutes(resource.estimatedMinutes)}
-              </p>
-            </div>
+          <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl border border-border bg-muted-bg/30 text-[13px]">
             <div className="space-y-0.5">
               <span className="text-[11px] text-muted uppercase font-semibold">
                 Rating
@@ -301,17 +288,24 @@ export function ResourceViewModal({
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-border bg-surface/80 backdrop-blur-md flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onDelete(resource.id);
-            }}
-            className="flex items-center gap-1.5 text-[13px] text-danger hover:underline cursor-pointer"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Delete resource</span>
-          </button>
+          {isOwner ? (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onDelete(resource.id);
+              }}
+              className="flex items-center gap-1.5 text-[13px] text-danger hover:underline cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete resource</span>
+            </button>
+          ) : (
+            <div className="text-xs text-muted-foreground flex items-center gap-1">
+              <span>Curated by</span>
+              <span className="font-semibold text-foreground">@{resource.user?.username || resource.user?.name || "community"}</span>
+            </div>
+          )}
 
           <div className="flex items-center gap-3">
             {resource.url && (

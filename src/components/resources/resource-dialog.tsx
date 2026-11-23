@@ -13,6 +13,7 @@ import {
   Code2,
   Sparkles,
   Star,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ export interface ResourceFormData {
   estimatedMinutes?: number | null;
   actualMinutes?: number;
   isFavorite?: boolean;
+  isPublic?: boolean;
   summary?: string | null;
   notes?: string | null;
   tagNames?: string[];
@@ -48,6 +50,7 @@ interface ResourceDialogProps {
   initialResource?: ResourceItem | null;
   defaultCategoryId?: string | null;
   defaultType?: ResourceType;
+  defaultIsPublic?: boolean;
   onSubmit: (data: ResourceFormData) => Promise<{ ok: boolean; error?: string }>;
 }
 
@@ -66,6 +69,7 @@ export function ResourceDialog({
   initialResource,
   defaultCategoryId,
   defaultType,
+  defaultIsPublic,
   onSubmit,
 }: ResourceDialogProps) {
   if (!isOpen) return null;
@@ -83,6 +87,7 @@ export function ResourceDialog({
           initialResource={initialResource}
           defaultCategoryId={defaultCategoryId}
           defaultType={defaultType}
+          defaultIsPublic={defaultIsPublic}
           onSubmit={onSubmit}
         />
       </div>
@@ -96,6 +101,7 @@ function ResourceFormInner({
   initialResource,
   defaultCategoryId,
   defaultType,
+  defaultIsPublic,
   onSubmit,
 }: {
   onClose: () => void;
@@ -103,6 +109,7 @@ function ResourceFormInner({
   initialResource?: ResourceItem | null;
   defaultCategoryId?: string | null;
   defaultType?: ResourceType;
+  defaultIsPublic?: boolean;
   onSubmit: (data: ResourceFormData) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const isEditing = !!initialResource;
@@ -125,11 +132,35 @@ function ResourceFormInner({
   const [isFavorite, setIsFavorite] = React.useState(
     initialResource?.isFavorite || false
   );
+  const [isPublic, setIsPublic] = React.useState(
+    initialResource?.isPublic ?? defaultIsPublic ?? false
+  );
   const [notes, setNotes] = React.useState(initialResource?.notes || "");
 
   const [detectedBadge, setDetectedBadge] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  // Flatten hierarchical categories with path breadcrumbs
+  const categoryOptions = React.useMemo(() => {
+    interface FlatCat {
+      id: string;
+      path: string;
+      level: number;
+    }
+    const result: FlatCat[] = [];
+    function traverse(nodes: CategoryNode[], prefix = "") {
+      for (const node of nodes) {
+        const current = prefix ? `${prefix} › ${node.name}` : node.name;
+        result.push({ id: node.id, path: current, level: node.level });
+        if (node.children && node.children.length > 0) {
+          traverse(node.children, current);
+        }
+      }
+    }
+    traverse(categories);
+    return result;
+  }, [categories]);
 
   // Smart URL Type Auto-Detection
   const handleUrlChange = (value: string) => {
@@ -208,6 +239,7 @@ function ResourceFormInner({
         author: author.trim() || null,
         estimatedMinutes: parsedEstimated && !isNaN(parsedEstimated) ? parsedEstimated : null,
         isFavorite,
+        isPublic,
         notes: notes.trim() || null,
       });
 
@@ -326,23 +358,76 @@ function ResourceFormInner({
           </div>
         </div>
 
-        {/* Folder Collection */}
+        {/* Category Hierarchy */}
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-foreground">
-            Folder / Collection
+            Category (Field › Subject › Topic)
           </label>
           <select
             value={categoryId || ""}
             onChange={(e) => setCategoryId(e.target.value || null)}
-            className="w-full px-3 py-2 rounded-xl bg-background border border-border text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+            className="w-full px-3 py-2.5 rounded-xl bg-background border border-border text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
           >
-            <option value="">-- No Folder (Unfiled) --</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                📁 {c.name}
+            <option value="">-- No Category (Uncategorized) --</option>
+            {categoryOptions.map((opt) => (
+              <option key={opt.id} value={opt.id}>
+                {opt.level === 1 ? "◆ " : opt.level === 2 ? "  ↳ " : "    • "}
+                {opt.path}
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Visibility: Public vs Private */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-foreground">
+            Visibility & Sharing
+          </label>
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={() => setIsPublic(false)}
+              className={cn(
+                "flex items-center gap-2.5 p-3 rounded-xl border text-xs transition-all text-left cursor-pointer",
+                !isPublic
+                  ? "bg-accent/10 border-accent/40 text-accent font-semibold ring-1 ring-accent/30 shadow-xs"
+                  : "bg-muted/20 border-border/60 text-secondary hover:text-foreground hover:bg-muted/40"
+              )}
+            >
+              <div className={cn(
+                "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
+                !isPublic ? "bg-accent text-white" : "bg-muted text-muted-foreground"
+              )}>
+                <Lock className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <div className="font-semibold text-foreground">Private</div>
+                <div className="text-[10px] text-muted-foreground leading-tight">Only you can view</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsPublic(true)}
+              className={cn(
+                "flex items-center gap-2.5 p-3 rounded-xl border text-xs transition-all text-left cursor-pointer",
+                isPublic
+                  ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 font-semibold ring-1 ring-emerald-500/30 shadow-xs"
+                  : "bg-muted/20 border-border/60 text-secondary hover:text-foreground hover:bg-muted/40"
+              )}
+            >
+              <div className={cn(
+                "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
+                isPublic ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
+              )}>
+                <Globe className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <div className="font-semibold text-foreground">Public</div>
+                <div className="text-[10px] text-muted-foreground leading-tight">Visible to all users</div>
+              </div>
+            </button>
+          </div>
         </div>
 
         {/* Author & Reading Time Row */}

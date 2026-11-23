@@ -1,3 +1,4 @@
+import { auth } from "@/lib/auth";
 import { getCategoriesAction } from "@/actions/categories";
 import { getResourcesAction } from "@/actions/resources";
 import { ResourcesContainer } from "@/components/resources/resources-container";
@@ -9,18 +10,23 @@ export const metadata = {
 };
 
 export default async function ResourcesPage() {
-  const [categoriesRes, resourcesRes] = await Promise.all([
+  const session = await auth();
+  const [categoriesRes, myResourcesRes, publicResourcesRes] = await Promise.all([
     getCategoriesAction(),
-    getResourcesAction(),
+    getResourcesAction({ scope: "all" }),
+    getResourcesAction({ scope: "public" }),
   ]);
 
   const categories = categoriesRes.ok && categoriesRes.data ? categoriesRes.data : [];
-  const resources = resourcesRes.ok && resourcesRes.data ? resourcesRes.data : [];
+  const myResources = myResourcesRes.ok && myResourcesRes.data ? myResourcesRes.data : [];
+  const publicResources = publicResourcesRes.ok && publicResourcesRes.data ? publicResourcesRes.data : [];
 
   return (
     <ResourcesContainer
-      initialResources={resources}
+      initialMyResources={myResources}
+      initialPublicResources={publicResources}
       categories={categories}
+      currentUserId={session?.user?.id || ""}
     />
   );
 }

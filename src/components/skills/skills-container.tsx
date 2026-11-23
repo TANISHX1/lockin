@@ -22,7 +22,14 @@ import {
   updateSkillProgressAction,
 } from "@/actions/skills";
 import { deleteProjectAction } from "@/actions/projects";
-import type { SkillItem, ProjectItem, SkillCategoryOption, ParentSkillOption } from "./skill-types";
+import {
+  type SkillItem,
+  type ProjectItem,
+  type SkillCategoryOption,
+  type ParentSkillOption,
+  getSkillLevel,
+} from "./skill-types";
+import { cn } from "@/lib/utils";
 
 interface SkillsContainerProps {
   initialSkills: SkillItem[];
@@ -89,34 +96,37 @@ export function SkillsContainer({
     }));
   }, [skills]);
 
-  // Total count of all skills including sub-skills
-  const totalSkillNodes = React.useMemo(() => {
-    let count = skills.length;
-    for (const parent of skills) {
-      if (parent.children) {
-        count += parent.children.length;
-      }
-    }
-    return count;
-  }, [skills]);
+  // Count Beginner, Intermediate, and Mastered across all skills
+  const { beginnerCount, intermediateCount, masteredCount, totalSkillsCount } = React.useMemo(() => {
+    let beginner = 0;
+    let intermediate = 0;
+    let mastered = 0;
+    let total = 0;
 
-  const masteredCount = React.useMemo(() => {
-    let count = 0;
-    for (const parent of skills) {
-      if (parent.progress === 100) count++;
-      if (parent.children) {
-        for (const child of parent.children) {
-          if (child.progress === 100) count++;
+    for (const field of skills) {
+      if (field.children && field.children.length > 0) {
+        for (const child of field.children) {
+          total++;
+          const level = getSkillLevel(child.progress);
+          if (level === "mastered") mastered++;
+          else if (level === "intermediate") intermediate++;
+          else beginner++;
         }
+      } else {
+        total++;
+        const level = getSkillLevel(field.progress);
+        if (level === "mastered") mastered++;
+        else if (level === "intermediate") intermediate++;
+        else beginner++;
       }
     }
-    return count;
-  }, [skills]);
 
-  const avgProficiency = React.useMemo(() => {
-    if (skills.length === 0) return 0;
-    const sum = skills.reduce((acc, s) => acc + s.progress, 0);
-    return Math.round(sum / skills.length);
+    return {
+      beginnerCount: beginner,
+      intermediateCount: intermediate,
+      masteredCount: mastered,
+      totalSkillsCount: total,
+    };
   }, [skills]);
 
   // Filter skills
@@ -257,88 +267,84 @@ export function SkillsContainer({
 
   return (
     <div className="space-y-6">
-      {/* Metric Cards Banner (Apple HIG Inset Metric Cards) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className="rounded-[16px] border border-border/80 bg-surface p-4 space-y-1 shadow-xs">
-          <span className="text-[12px] font-medium text-secondary">
-            Skills & Sub-skills
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-2xl font-semibold text-foreground tracking-tight">
-              {totalSkillNodes}
-            </span>
-            <Layers className="w-4 h-4 text-accent" />
+      {/* 1. Competency Metric Bar (Synchronized with Background & Single Box Breakdown) */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-1 bg-transparent border-0">
+        {/* Fields & Skills Overview */}
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-accent-tint text-accent">
+            <Layers className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="text-[11px] font-semibold text-secondary uppercase tracking-wider">
+              Skills Matrix
+            </div>
+            <div className="text-lg font-bold text-foreground">
+              {totalSkillsCount} {totalSkillsCount === 1 ? "Skill" : "Skills"}{" "}
+              <span className="text-xs font-normal text-secondary">
+                in {skills.length} {skills.length === 1 ? "field" : "fields"}
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="rounded-[16px] border border-border/80 bg-surface p-4 space-y-1 shadow-xs">
-          <span className="text-[12px] font-medium text-secondary">
-            Mastered (100%)
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-2xl font-semibold text-success tracking-tight">
-              {masteredCount}
-            </span>
-            <Award className="w-4 h-4 text-success" />
+        {/* Single Box: Beginner, Intermediate, Mastered Counts */}
+        <div className="flex items-center gap-2 sm:gap-2.5 p-1.5 rounded-2xl bg-surface/50 border border-border/50">
+          {/* Beginner Count */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            <span className="text-xs font-medium">Beginner:</span>
+            <span className="text-xs font-bold">{beginnerCount}</span>
           </div>
-        </div>
 
-        <div className="rounded-[16px] border border-border/80 bg-surface p-4 space-y-1 shadow-xs">
-          <span className="text-[12px] font-medium text-secondary">
-            Average proficiency
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-2xl font-semibold text-purple tracking-tight">
-              {avgProficiency}%
-            </span>
-            <TrendingUp className="w-4 h-4 text-purple" />
+          {/* Intermediate Count */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-600 dark:text-sky-400">
+            <span className="w-2 h-2 rounded-full bg-sky-500" />
+            <span className="text-xs font-medium">Intermediate:</span>
+            <span className="text-xs font-bold">{intermediateCount}</span>
           </div>
-        </div>
 
-        <div className="rounded-[16px] border border-border/80 bg-surface p-4 space-y-1 shadow-xs">
-          <span className="text-[12px] font-medium text-secondary">
-            Portfolio projects
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-2xl font-semibold text-foreground tracking-tight">
-              {projects.length}
-            </span>
-            <FolderGit2 className="w-4 h-4 text-secondary" />
+          {/* Mastered Count */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="text-xs font-medium">Mastered:</span>
+            <span className="text-xs font-bold">{masteredCount}</span>
           </div>
         </div>
       </div>
 
-      {/* Control Bar: Apple Segmented Switcher, Search, and Add Buttons */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      {/* 2. Control Bar: Synchronized with Background */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 py-1 bg-transparent border-0">
         {/* Apple Segmented Control Tab Switcher */}
-        <div className="inline-flex p-1 rounded-xl bg-surface-secondary/80 border border-border/80 shrink-0">
+        <div className="inline-flex p-1 rounded-xl bg-surface/50 border border-border/50 shrink-0">
           <button
             type="button"
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[13px] font-medium transition-all ${
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-[13px] font-medium transition-all cursor-pointer",
               activeTab === "skills"
-                ? "bg-surface text-foreground font-semibold shadow-xs"
+                ? "bg-surface text-accent font-semibold shadow-xs border border-border/50"
                 : "text-secondary hover:text-foreground"
-            }`}
+            )}
             onClick={() => setActiveTab("skills")}
           >
             <Layers className="w-3.5 h-3.5 text-accent" />
-            <span>Skills Matrix ({totalSkillNodes})</span>
+            <span>Skills Matrix</span>
           </button>
           <button
             type="button"
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[13px] font-medium transition-all ${
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-[13px] font-medium transition-all cursor-pointer",
               activeTab === "projects"
-                ? "bg-surface text-foreground font-semibold shadow-xs"
+                ? "bg-surface text-purple font-semibold shadow-xs border border-border/50"
                 : "text-secondary hover:text-foreground"
-            }`}
+            )}
             onClick={() => setActiveTab("projects")}
           >
             <FolderGit2 className="w-3.5 h-3.5 text-purple" />
-            <span>Projects & Live Demos ({projects.length})</span>
+            <span>Projects & Demos</span>
           </button>
         </div>
 
-        {/* Search, Filter & Action */}
+        {/* Search, Filter & Actions */}
         <div className="flex items-center gap-2.5 flex-1 max-w-xl justify-end">
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
@@ -346,12 +352,12 @@ export function SkillsContainer({
               type="text"
               placeholder={
                 activeTab === "skills"
-                  ? "Search skills, sub-skills..."
+                  ? "Search fields & skills..."
                   : "Search projects, repos..."
               }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-[38px] rounded-[10px]"
+              className="pl-9 h-[38px] rounded-xl text-xs bg-surface border-border"
             />
           </div>
 
@@ -359,9 +365,9 @@ export function SkillsContainer({
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="h-[38px] px-3 rounded-[10px] border border-border bg-surface text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-accent/20 shrink-0 hidden sm:block"
+              className="h-[38px] px-3 rounded-xl border border-border bg-surface text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent shrink-0 hidden sm:block"
             >
-              <option value="all">All categories</option>
+              <option value="all">All Domains / Categories</option>
               <option value="uncategorized">Uncategorized</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
@@ -374,27 +380,27 @@ export function SkillsContainer({
           {activeTab === "skills" ? (
             <Button
               onClick={handleAddParentSkill}
-              className="h-[38px] rounded-[10px] font-medium flex items-center gap-1.5 shrink-0"
+              className="h-[38px] rounded-xl text-xs font-semibold flex items-center gap-1.5 shrink-0 shadow-xs cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Add skill</span>
+              <span>Add Field</span>
             </Button>
           ) : (
             <Button
               onClick={handleAddProject}
-              className="h-[38px] rounded-[10px] font-medium flex items-center gap-1.5 shrink-0"
+              className="h-[38px] rounded-xl text-xs font-semibold flex items-center gap-1.5 shrink-0 shadow-xs cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Add project</span>
+              <span>Add Project</span>
             </Button>
           )}
         </div>
       </div>
 
-      {/* Main Content Area */}
+      {/* Main Content Area: Click-to-Expand List Hierarchy */}
       {activeTab === "skills" ? (
         filteredSkills.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-3">
             {filteredSkills.map((skill) => (
               <SkillTreeCard
                 key={skill.id}
@@ -407,24 +413,24 @@ export function SkillsContainer({
             ))}
           </div>
         ) : (
-          <div className="rounded-[18px] border border-border/80 bg-surface p-12 text-center space-y-4">
+          <div className="rounded-2xl border border-border/80 bg-surface p-12 text-center space-y-4">
             <div className="w-12 h-12 rounded-2xl bg-accent-tint text-accent flex items-center justify-center mx-auto border border-accent/20">
               <Award className="w-6 h-6 stroke-[1.75]" />
             </div>
             <div className="space-y-1.5 max-w-sm mx-auto">
               <h3 className="text-[16px] font-semibold text-foreground tracking-tight">
-                {searchQuery ? "No matching skills" : "No skills tracked yet"}
+                {searchQuery ? "No matching fields or skills" : "No knowledge fields tracked yet"}
               </h3>
               <p className="text-[13px] text-secondary leading-relaxed">
                 {searchQuery
-                  ? "Try searching for a different keyword or category."
-                  : "Add your main skills (e.g. Python, Machine Learning) and nest frameworks and sub-skills under them."}
+                  ? "Try searching for a different keyword or domain."
+                  : "Add your fields (e.g. Web Development, AI & ML) and organize practical skills under each field."}
               </p>
             </div>
             {!searchQuery && (
               <Button onClick={handleAddParentSkill} className="rounded-xl mt-2">
                 <Plus className="w-4 h-4 mr-1.5" />
-                Add your first skill
+                Add your first field
               </Button>
             )}
           </div>

@@ -33,6 +33,7 @@ export interface EntityWithUser {
   userId?: string;
   isProfilePublic?: boolean;
   visibility?: "PRIVATE" | "PUBLIC" | "SHARED";
+  isPublic?: boolean;
   [key: string]: unknown;
 }
 
@@ -47,7 +48,7 @@ export function can(
 ): boolean {
   if (!user) {
     // Unauthenticated user can only read public resources or public profiles
-    if (action === "read" && entity.data?.visibility === "PUBLIC") {
+    if (action === "read" && (entity.data?.visibility === "PUBLIC" || entity.data?.isPublic)) {
       return true;
     }
     if (action === "read" && entity.type === "user" && entity.data?.isProfilePublic) {
@@ -76,7 +77,8 @@ export function can(
     if (action === "read") {
       return (
         entity.data.visibility === "PUBLIC" ||
-        entity.data.visibility === "SHARED"
+        entity.data.visibility === "SHARED" ||
+        entity.data.isPublic === true
       );
     }
     return false;

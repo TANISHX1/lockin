@@ -189,36 +189,55 @@ async function main() {
     },
   });
 
-  // 5b. Create Hierarchical Skills
-  let pythonSkill = await db.skill.findFirst({
-    where: { userId: user.id, parentId: null, name: "Python" },
+  // 5b. Create Skills (Fields and Skills inside them)
+  let mlField = await db.skill.findFirst({
+    where: { userId: user.id, parentId: null, name: "Machine Learning & AI" },
   });
-  if (!pythonSkill) {
-    pythonSkill = await db.skill.create({
+  if (!mlField) {
+    mlField = await db.skill.create({
       data: {
         userId: user.id,
         categoryId: mlCat.id,
-        name: "Python",
-        description: "Core language mastery, standard library, decorators, generators, and async programming.",
+        name: "Machine Learning & AI",
+        description: "Statistical modeling, deep learning architectures, tensor computation, and distributed training.",
         iconUrl: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg",
-        progress: 90,
+        progress: 88,
       },
     });
   }
 
-  // Python Sub-skills
+  // Skills inside Machine Learning Field
   await db.skill.upsert({
     where: {
       userId_parentId_name: {
         userId: user.id,
-        parentId: pythonSkill.id,
+        parentId: mlField.id,
+        name: "Python",
+      },
+    },
+    update: {},
+    create: {
+      userId: user.id,
+      parentId: mlField.id,
+      name: "Python",
+      description: "Core language mastery, standard library, decorators, generators, and async programming.",
+      iconUrl: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg",
+      progress: 95,
+    },
+  });
+
+  await db.skill.upsert({
+    where: {
+      userId_parentId_name: {
+        userId: user.id,
+        parentId: mlField.id,
         name: "PyTorch",
       },
     },
     update: {},
     create: {
       userId: user.id,
-      parentId: pythonSkill.id,
+      parentId: mlField.id,
       name: "PyTorch",
       description: "Custom autograd functions, GPU tensor memory layout, multi-GPU DDP training, and torch.compile tracing.",
       iconUrl: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pytorch/pytorch-original.svg",
@@ -230,18 +249,18 @@ async function main() {
     where: {
       userId_parentId_name: {
         userId: user.id,
-        parentId: pythonSkill.id,
+        parentId: mlField.id,
         name: "Pandas",
       },
     },
     update: {},
     create: {
       userId: user.id,
-      parentId: pythonSkill.id,
+      parentId: mlField.id,
       name: "Pandas",
       description: "Dataframe manipulation, vectorized operations, time-series indexing, and parquet serialization.",
       iconUrl: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pandas/pandas-original.svg",
-      progress: 85,
+      progress: 75,
     },
   });
 
@@ -249,34 +268,34 @@ async function main() {
     where: {
       userId_parentId_name: {
         userId: user.id,
-        parentId: pythonSkill.id,
+        parentId: mlField.id,
         name: "FastAPI",
       },
     },
     update: {},
     create: {
       userId: user.id,
-      parentId: pythonSkill.id,
+      parentId: mlField.id,
       name: "FastAPI",
       description: "Asynchronous REST APIs, Pydantic v2 schemas, OpenAPI generation, and dependency injection.",
       iconUrl: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/fastapi/fastapi-original.svg",
-      progress: 80,
+      progress: 40,
     },
   });
 
-  // TypeScript Parent & Sub-skills
-  let tsSkill = await db.skill.findFirst({
-    where: { userId: user.id, parentId: null, name: "TypeScript & Web Engineering" },
+  // Web Development Field
+  let webField = await db.skill.findFirst({
+    where: { userId: user.id, parentId: null, name: "Web Development" },
   });
-  if (!tsSkill) {
-    tsSkill = await db.skill.create({
+  if (!webField) {
+    webField = await db.skill.create({
       data: {
         userId: user.id,
         categoryId: csCat.id,
-        name: "TypeScript & Web Engineering",
-        description: "Type-level programming, generics, fullstack modern web applications, and system design.",
-        iconUrl: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg",
-        progress: 92,
+        name: "Web Development",
+        description: "Fullstack web architectures, reactive client state, server components, and performant web APIs.",
+        iconUrl: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg",
+        progress: 85,
       },
     });
   }
@@ -285,17 +304,17 @@ async function main() {
     where: {
       userId_parentId_name: {
         userId: user.id,
-        parentId: tsSkill.id,
-        name: "React",
+        parentId: webField.id,
+        name: "TypeScript",
       },
     },
     update: {},
     create: {
       userId: user.id,
-      parentId: tsSkill.id,
-      name: "React",
-      description: "Server components, custom hooks, concurrent mode, and virtual DOM reconciliation.",
-      iconUrl: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg",
+      parentId: webField.id,
+      name: "TypeScript",
+      description: "Type-level programming, generics, type narrowing, and declaration file crafting.",
+      iconUrl: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg",
       progress: 95,
     },
   });
@@ -304,18 +323,37 @@ async function main() {
     where: {
       userId_parentId_name: {
         userId: user.id,
-        parentId: tsSkill.id,
+        parentId: webField.id,
+        name: "React",
+      },
+    },
+    update: {},
+    create: {
+      userId: user.id,
+      parentId: webField.id,
+      name: "React",
+      description: "Server components, custom hooks, concurrent mode, and virtual DOM reconciliation.",
+      iconUrl: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg",
+      progress: 80,
+    },
+  });
+
+  await db.skill.upsert({
+    where: {
+      userId_parentId_name: {
+        userId: user.id,
+        parentId: webField.id,
         name: "Next.js",
       },
     },
     update: {},
     create: {
       userId: user.id,
-      parentId: tsSkill.id,
+      parentId: webField.id,
       name: "Next.js",
       description: "App router architecture, server actions, streaming SSR, and edge middleware.",
       iconUrl: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nextjs/nextjs-original.svg",
-      progress: 90,
+      progress: 45,
     },
   });
 
@@ -334,7 +372,7 @@ async function main() {
         status: "COMPLETED",
         skills: {
           create: [
-            { skillId: pythonSkill.id },
+            { skillId: mlField.id },
           ],
         },
       },
@@ -354,6 +392,7 @@ async function main() {
       estimatedMinutes: 120,
       actualMinutes: 140,
       isFavorite: true,
+      isPublic: true,
       summary: "The seminal 2017 paper replacing recurrence and convolutions entirely with multi-head attention.",
       concepts: {
         create: { conceptId: conceptTransformers.id },
@@ -376,12 +415,33 @@ async function main() {
       estimatedMinutes: 600,
       actualMinutes: 240,
       isFavorite: true,
+      isPublic: false,
       summary: "The comprehensive guide to storage engines, distributed consensus, transactions, and stream processing.",
       concepts: {
         create: { conceptId: conceptRaft.id },
       },
       tags: {
         create: { tagId: tagArchitecture.id },
+      },
+    },
+  });
+
+  const resDocs = await db.resource.create({
+    data: {
+      userId: user.id,
+      categoryId: mlCat.id,
+      title: "PyTorch Internal Architecture & Dispatcher Deep Dive",
+      url: "http://blog.ezyang.com/2019/05/pytorch-internals/",
+      type: ResourceType.DOCUMENTATION,
+      status: ResourceStatus.IN_PROGRESS,
+      rating: 5,
+      estimatedMinutes: 90,
+      actualMinutes: 45,
+      isFavorite: false,
+      isPublic: true,
+      summary: "Edward Z. Yang's deep architectural breakdown of how tensors, autograd engines, and kernels work in PyTorch.",
+      tags: {
+        create: { tagId: tagDeepLearning.id },
       },
     },
   });
